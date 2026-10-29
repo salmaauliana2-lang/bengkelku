@@ -152,8 +152,8 @@ export default function ServiceTrafficChart({
                 x2="0"
                 y2="1"
               >
-                <stop offset="0%" stopColor="#ffc48f" />
-                <stop offset="100%" stopColor="#fff1e6" />
+                <stop offset="0%" stopColor="#c98b97" />
+                <stop offset="100%" stopColor="#7a3a46" />
               </linearGradient>
               <linearGradient
                 id="service-bar-done"

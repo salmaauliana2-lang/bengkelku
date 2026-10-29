@@ -37,26 +37,30 @@ terakhir (hari ini dan 6 hari sebelumnya):
 Data demo langsung tampil di dashboard, inventaris, riwayat stok,
 penjualan, servis, pembelian, dan halaman pengguna.
 
-### Dashboard bergaya garage
+### Dashboard industrial maroon
 
-Halaman dashboard memakai tema bengkel: sidebar karbon, aksen safety
-orange, jam workshop yang berjalan, serta animasi masuk yang halus
-(otomatis dimatikan bila pengguna mengaktifkan *reduced motion*).
+Halaman dashboard memakai tema bengkel industrial: permukaan karbon
+kehitaman, aksen maroon, garis hazard, jam workshop yang berjalan, serta
+animasi masuk yang halus (otomatis dimatikan bila pengguna mengaktifkan
+*reduced motion*). Halaman login memakai palet dan gaya yang sama.
 
-- **Semua fitur bisa diklik** — kartu statistik, tile akses cepat, baris
+- **Semua fitur bisa diklik** - kartu statistik, tile akses cepat, baris
   tabel, legenda donut, dan tombol grafik langsung berpindah halaman
   tanpa muat ulang (React Router).
-- **Deep link** — misalnya `/inventory?q=ENG-008`, `/sales?sale=35`,
+- **Dropdown Aksi Cepat** - tombol di topbar membuka menu ke Inventaris,
+  Penjualan, Servis, Pembelian, dan Pengguna sesuai role.
+- **Panel lipat** - daftar Stok Menipis, Penjualan Terbaru, dan Servis
+  Aktif disembunyikan di balik tombol dropdown dengan ringkasan jumlah,
+  sehingga dashboard tidak penuh tabel sampai datanya dibutuhkan.
+- **Deep link** - misalnya `/inventory?q=ENG-008`, `/sales?sale=35`,
   `/services?service=8`, dan `/services?status=completed`, sehingga
   detail atau filter langsung terbuka saat halaman dimuat.
-- **Grafik penjualan** — omzet harian dengan area gradien, tooltip, dan
+- **Grafik penjualan** - omzet harian dengan area gradien, tooltip, dan
   pilihan rentang 7 atau 30 hari.
-- **Grafik traffic servis** — jumlah kendaraan masuk dan selesai per hari
+- **Grafik traffic servis** - jumlah kendaraan masuk dan selesai per hari
   beserta rasio penyelesaian.
-- **Kartu statistik** — sparkline, tren naik/turun, angka animasi, dan
+- **Kartu statistik** - sparkline, tren naik/turun, angka animasi, dan
   cincin distribusi status servis yang bisa difilter.
-- **Layout padat** — grid 12 kolom dengan panel grafik, ringkasan, stok
-  menipis, penjualan terbaru, dan servis aktif dalam satu layar.
 
 ### Akun demo
 

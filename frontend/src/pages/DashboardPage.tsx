@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import SalesTrendChart from '../components/SalesTrendChart'
 import ServiceTrafficChart from '../components/ServiceTrafficChart'
+import FoldPanel from '../components/FoldPanel'
 import Sparkline from '../components/Sparkline'
 import StatusBadge from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
@@ -108,25 +109,25 @@ export default function DashboardPage() {
           key: 'pending',
           label: 'Menunggu',
           value: summary.services.pending,
-          color: '#f79009',
+          color: '#d9a441',
         },
         {
           key: 'in_progress',
           label: 'Dikerjakan',
           value: summary.services.in_progress,
-          color: '#2e90fa',
+          color: '#c9808f',
         },
         {
           key: 'completed',
           label: 'Selesai',
           value: summary.services.completed,
-          color: '#12b76a',
+          color: '#2fd6a4',
         },
         {
           key: 'cancelled',
           label: 'Dibatalkan',
           value: summary.services.cancelled,
-          color: '#f04438',
+          color: '#e05060',
         },
       ]
     : []
@@ -526,17 +527,13 @@ export default function DashboardPage() {
             </div>
 
             <div className="dash-span-6">
-              <article className="panel">
-                <div className="panel-header">
-                  <div>
-                    <h2>Stok Menipis</h2>
-                    <p>Klik produk untuk cek di inventaris.</p>
-                  </div>
-                  <Link className="text-link" to="/inventory">
-                    Inventaris
-                  </Link>
-                </div>
-
+              <FoldPanel
+                icon="▦"
+                title="Stok Menipis"
+                hint="Buka daftar produk yang perlu restock"
+                meta={`${summary.low_stock_products.length} produk`}
+                action={{ to: '/inventory', label: 'Inventaris' }}
+              >
                 {summary.low_stock_products.length === 0 ? (
                   <p className="empty-text">Semua stok produk aman.</p>
                 ) : (
@@ -581,23 +578,17 @@ export default function DashboardPage() {
                     </table>
                   </div>
                 )}
-              </article>
+              </FoldPanel>
             </div>
 
             <div className="dash-span-6">
-              <article className="panel">
-                <div className="panel-header">
-                  <div>
-                    <h2>Penjualan Terbaru</h2>
-                    <p>Klik nota untuk membuka detail.</p>
-                  </div>
-                  {canSales && (
-                    <Link className="text-link" to="/sales">
-                      Semua
-                    </Link>
-                  )}
-                </div>
-
+              <FoldPanel
+                icon="↗"
+                title="Penjualan Terbaru"
+                hint="Buka nota untuk melihat detail transaksi"
+                meta={`${summary.recent_sales.length} nota`}
+                action={canSales ? { to: '/sales', label: 'Semua' } : undefined}
+              >
                 {summary.recent_sales.length === 0 ? (
                   <p className="empty-text">Belum ada penjualan.</p>
                 ) : (
@@ -620,76 +611,78 @@ export default function DashboardPage() {
                     ))}
                   </ul>
                 )}
-              </article>
+              </FoldPanel>
             </div>
           </div>
 
-          <article className="panel active-panel">
-            <div className="panel-header">
-              <div>
-                <h2>Servis Aktif</h2>
-                <p>Kendaraan yang masih menunggu atau dikerjakan.</p>
-              </div>
-              {canServices && (
-                <Link className="text-link" to="/services">
-                  Lihat semua
-                </Link>
-              )}
+          <div className="dash-grid">
+            <div className="dash-span-12">
+              <FoldPanel
+                icon="⚙"
+                title="Servis Aktif"
+                hint="Kendaraan yang masih menunggu atau dikerjakan"
+                meta={`${summary.active_services.length} kendaraan`}
+                action={
+                  canServices
+                    ? { to: '/services', label: 'Lihat semua' }
+                    : undefined
+                }
+              >
+                {summary.active_services.length === 0 ? (
+                  <p className="empty-text">Tidak ada servis aktif.</p>
+                ) : (
+                  <div className="table-wrap">
+                    <table className="data-table compact-table">
+                      <thead>
+                        <tr>
+                          <th>No. Servis</th>
+                          <th>Pelanggan</th>
+                          <th>Kendaraan</th>
+                          <th>Status</th>
+                          <th>Masuk</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {summary.active_services.map((service) => (
+                          <tr
+                            key={service.id}
+                            {...rowNavigation(
+                              canServices
+                                ? `/services?service=${service.id}`
+                                : null,
+                            )}
+                          >
+                            <td className="mono">
+                              {canServices ? (
+                                <Link
+                                  className="row-link"
+                                  to={`/services?service=${service.id}`}
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  {service.service_number}
+                                </Link>
+                              ) : (
+                                service.service_number
+                              )}
+                            </td>
+                            <td>{service.customer_name}</td>
+                            <td className="mono">{service.vehicle_plate}</td>
+                            <td>
+                              <StatusBadge
+                                status={service.status}
+                                label={serviceStatusLabels[service.status]}
+                              />
+                            </td>
+                            <td>{formatDateTime(service.created_at)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </FoldPanel>
             </div>
-
-            {summary.active_services.length === 0 ? (
-              <p className="empty-text">Tidak ada servis aktif.</p>
-            ) : (
-              <div className="table-wrap">
-                <table className="data-table compact-table">
-                  <thead>
-                    <tr>
-                      <th>No. Servis</th>
-                      <th>Pelanggan</th>
-                      <th>Kendaraan</th>
-                      <th>Status</th>
-                      <th>Masuk</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {summary.active_services.map((service) => (
-                      <tr
-                        key={service.id}
-                        {...rowNavigation(
-                          canServices
-                            ? `/services?service=${service.id}`
-                            : null,
-                        )}
-                      >
-                        <td className="mono">
-                          {canServices ? (
-                            <Link
-                              className="row-link"
-                              to={`/services?service=${service.id}`}
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              {service.service_number}
-                            </Link>
-                          ) : (
-                            service.service_number
-                          )}
-                        </td>
-                        <td>{service.customer_name}</td>
-                        <td className="mono">{service.vehicle_plate}</td>
-                        <td>
-                          <StatusBadge
-                            status={service.status}
-                            label={serviceStatusLabels[service.status]}
-                          />
-                        </td>
-                        <td>{formatDateTime(service.created_at)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </article>
+          </div>
         </>
       )}
     </section>

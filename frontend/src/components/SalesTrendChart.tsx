@@ -166,8 +166,8 @@ export default function SalesTrendChart({
                 x2="0"
                 y2="1"
               >
-                <stop offset="0%" stopColor="#ff6a2b" stopOpacity="0.32" />
-                <stop offset="100%" stopColor="#ff6a2b" stopOpacity="0" />
+                <stop offset="0%" stopColor="#a3263a" stopOpacity="0.32" />
+                <stop offset="100%" stopColor="#a3263a" stopOpacity="0" />
               </linearGradient>
               <linearGradient
                 id="sales-line-gradient"
@@ -176,8 +176,8 @@ export default function SalesTrendChart({
                 x2="1"
                 y2="0"
               >
-                <stop offset="0%" stopColor="#e8590c" />
-                <stop offset="55%" stopColor="#ff6a2b" />
+                <stop offset="0%" stopColor="#7f1d2b" />
+                <stop offset="55%" stopColor="#a3263a" />
                 <stop offset="100%" stopColor="#ffb020" />
               </linearGradient>
             </defs>

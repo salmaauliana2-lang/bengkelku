@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { useAuth } from '../context/AuthContext'
@@ -55,6 +55,7 @@ function DashboardLayout() {
   const { user, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
+  const quickMenuRef = useRef<HTMLDetailsElement>(null)
 
   const visibleMenu = menuItems.filter(
     (item) => user && item.roles.includes(user.role),
@@ -67,6 +68,27 @@ function DashboardLayout() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [location.pathname])
+
+  // Tutup dropdown aksi cepat saat pindah halaman atau klik di luar menu.
+  useEffect(() => {
+    if (quickMenuRef.current) {
+      quickMenuRef.current.open = false
+    }
+  }, [location.pathname])
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      const menu = quickMenuRef.current
+
+      if (menu && !menu.contains(event.target as Node)) {
+        menu.open = false
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [])
 
   return (
     <div className="dashboard-layout">
@@ -137,21 +159,60 @@ function DashboardLayout() {
             </div>
           </div>
 
-          <div className="user-profile">
-            <div className="user-avatar">
-              {initials(user?.name ?? 'Pengguna')}
+          <div className="topbar-tools">
+            <details className="quick-menu" ref={quickMenuRef}>
+              <summary className="quick-menu-trigger">
+                <span className="quick-menu-bolt" aria-hidden="true">
+                  ⌁
+                </span>
+                Aksi Cepat
+                <span className="quick-menu-caret" aria-hidden="true">
+                  ▾
+                </span>
+              </summary>
+
+              <div className="quick-menu-panel">
+                <span className="quick-menu-label">Langsung ke</span>
+
+                {visibleMenu
+                  .filter((item) => item.path !== '/dashboard')
+                  .map((item, index) => (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      className="quick-menu-link"
+                      onClick={() => {
+                        if (quickMenuRef.current) {
+                          quickMenuRef.current.open = false
+                        }
+                      }}
+                    >
+                      <span className="quick-menu-icon" aria-hidden="true">
+                        {item.icon}
+                      </span>
+                      <span>{item.label}</span>
+                      <small>{String(index + 1).padStart(2, '0')}</small>
+                    </NavLink>
+                  ))}
+              </div>
+            </details>
+
+            <div className="user-profile">
+              <div className="user-avatar">
+                {initials(user?.name ?? 'Pengguna')}
+              </div>
+              <div>
+                <strong>{user?.name ?? 'Pengguna'}</strong>
+                <span>{user ? roleLabels[user.role] : ''}</span>
+              </div>
+              <button
+                type="button"
+                className="button button-ghost button-small"
+                onClick={signOut}
+              >
+                Keluar
+              </button>
             </div>
-            <div>
-              <strong>{user?.name ?? 'Pengguna'}</strong>
-              <span>{user ? roleLabels[user.role] : ''}</span>
-            </div>
-            <button
-              type="button"
-              className="button button-ghost button-small"
-              onClick={signOut}
-            >
-              Keluar
-            </button>
           </div>
         </header>
 
