@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 
-import PageHeader from '../components/PageHeader'
 import SalesTrendChart from '../components/SalesTrendChart'
 import ServiceTrafficChart from '../components/ServiceTrafficChart'
 import Sparkline from '../components/Sparkline'
 import StatusBadge from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
+import { useCountUp } from '../hooks/useCountUp'
+import { useShiftClock } from '../hooks/useShiftClock'
 import { getDashboardSummary } from '../services/dashboard'
-import type { DashboardSummary, Role } from '../types'
+import type { DashboardSummary, ServiceStatus } from '../types'
 import { percentChange } from '../utils/chart'
 import {
   formatCurrency,
@@ -17,52 +18,8 @@ import {
   serviceStatusLabels,
 } from '../utils/format'
 
-interface FeatureLink {
-  path: string
-  icon: string
-  title: string
-  description: string
-  tone: string
-  roles: Role[]
-}
-
-const featureLinks: FeatureLink[] = [
-  {
-    path: '/inventory',
-    icon: '▦',
-    title: 'Inventaris',
-    description: 'Stok spare part, harga, dan riwayat pergerakan.',
-    tone: 'blue',
-    roles: ['owner', 'admin', 'mekanik', 'staff'],
-  },
-  {
-    path: '/sales',
-    icon: '↗',
-    title: 'Penjualan',
-    description: 'Kasir cepat, diskon, dan invoice otomatis.',
-    tone: 'green',
-    roles: ['owner', 'admin'],
-  },
-  {
-    path: '/services',
-    icon: '⚙',
-    title: 'Servis Bengkel',
-    description: 'Antrian kendaraan dan progres pengerjaan.',
-    tone: 'amber',
-    roles: ['owner', 'admin', 'mekanik'],
-  },
-  {
-    path: '/purchases',
-    icon: '▤',
-    title: 'Pembelian',
-    description: 'Restock dari supplier dan penambahan stok.',
-    tone: 'violet',
-    roles: ['owner', 'admin'],
-  },
-]
-
-function greetingDate(): string {
-  return new Date().toLocaleDateString('id-ID', {
+function longDate(date: Date): string {
+  return date.toLocaleDateString('id-ID', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -72,6 +29,9 @@ function greetingDate(): string {
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
+  const clock = useShiftClock()
+
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -106,6 +66,9 @@ export default function DashboardPage() {
     }
   }, [])
 
+  const canSales = user?.role === 'owner' || user?.role === 'admin'
+  const canServices = canSales || user?.role === 'mekanik'
+
   const activeServiceCount = summary
     ? summary.services.pending + summary.services.in_progress
     : 0
@@ -121,21 +84,25 @@ export default function DashboardPage() {
   const salesDelta = percentChange(salesToday, salesYesterday)
 
   const visitsToday =
-    lastServices.length > 0
-      ? lastServices[lastServices.length - 1].total
-      : 0
+    lastServices.length > 0 ? lastServices[lastServices.length - 1].total : 0
   const visitsYesterday =
     lastServices.length > 1
       ? lastServices[lastServices.length - 2].total
       : 0
   const visitsDelta = percentChange(visitsToday, visitsYesterday)
 
-  const visibleFeatures = featureLinks.filter(
-    (feature) => user && feature.roles.includes(user.role),
-  )
+  const animatedSales = useCountUp(salesToday)
+  const animatedActive = useCountUp(activeServiceCount)
+  const animatedLowStock = useCountUp(summary?.products.low_stock ?? 0)
+  const animatedPurchases = useCountUp(summary?.purchases.month_total ?? 0)
 
   const serviceTotal = summary?.services.total ?? 0
-  const serviceSegments = summary
+  const serviceSegments: Array<{
+    key: ServiceStatus
+    label: string
+    value: number
+    color: string
+  }> = summary
     ? [
         {
           key: 'pending',
@@ -183,33 +150,131 @@ export default function DashboardPage() {
         )
       : 0
 
+  const quickFeatures = [
+    {
+      to: '/inventory',
+      icon: '▦',
+      label: 'Inventaris',
+      meta: `${formatNumber(summary?.products.total ?? 0)} spare part`,
+      tone: 'blue',
+    },
+    {
+      to: canSales ? '/sales' : '/inventory',
+      icon: '↗',
+      label: 'Penjualan',
+      meta: `${formatNumber(summary?.sales.total_count ?? 0)} nota`,
+      tone: 'green',
+    },
+    {
+      to: canServices ? '/services' : '/inventory',
+      icon: '⚙',
+      label: 'Servis',
+      meta: `${formatNumber(serviceTotal)} order`,
+      tone: 'amber',
+    },
+    {
+      to: canSales ? '/purchases' : '/inventory',
+      icon: '▤',
+      label: 'Pembelian',
+      meta: `${formatNumber(summary?.purchases.total_count ?? 0)} PO`,
+      tone: 'violet',
+    },
+  ]
+
+  function rowNavigation(path: string | null) {
+    if (!path) return {}
+
+    return {
+      className: 'row-click',
+      role: 'link' as const,
+      tabIndex: 0,
+      onClick: () => navigate(path),
+      onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          navigate(path)
+        }
+      },
+    }
+  }
+
   return (
     <section>
-      <PageHeader
-        title={`Halo, ${user?.name.split(' ')[0] ?? 'Pengguna'}`}
-        description={`Ringkasan operasional bengkel · ${greetingDate()}`}
-        actions={
-          <>
-            <Link className="button button-ghost" to="/services">
-              Servis Bengkel
-            </Link>
-            <Link className="button button-primary" to="/sales">
-              + Transaksi Baru
-            </Link>
-          </>
-        }
-      />
-
       {error && <div className="alert alert-error">{error}</div>}
 
-      {loading && <div className="panel loading-row">Memuat ringkasan…</div>}
+      {loading && <div className="panel loading-row">Memuat dek bengkel…</div>}
 
       {summary && (
         <>
+          <section className="garage-hero">
+            <div className="hero-copy">
+              <span className="hero-kicker">
+                <i className="pulse-dot" aria-hidden="true" />
+                Shift aktif · {longDate(clock)}
+              </span>
+              <h1>
+                Halo, <em>{user?.name.split(' ')[0] ?? 'Pengguna'}</em>.
+              </h1>
+              <p>
+                Bengkel siap tempur. Omzet, antrian pit, dan stok spare part
+                terpantau dalam satu dek.
+              </p>
+              <div className="hero-actions">
+                {canSales ? (
+                  <Link className="button button-primary" to="/sales">
+                    + Transaksi Baru
+                  </Link>
+                ) : (
+                  <Link className="button button-primary" to="/inventory">
+                    Buka Inventaris
+                  </Link>
+                )}
+                {canServices ? (
+                  <Link className="button button-ghost" to="/services">
+                    Buka Antrian Servis
+                  </Link>
+                ) : (
+                  <Link className="button button-ghost" to="/inventory">
+                    Cek Stok Spare Part
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            <div className="hero-side">
+              <div className="hero-clock">
+                <span>Waktu workshop</span>
+                <strong>
+                  {clock.toLocaleTimeString('id-ID', { hour12: false })}
+                </strong>
+                <small>WIB · zona bengkel</small>
+              </div>
+
+              <div className="hero-live">
+                <div>
+                  <b>{summary.sales.today_count}</b>
+                  <span>nota hari ini</span>
+                </div>
+                <div>
+                  <b>{activeServiceCount}</b>
+                  <span>kendaraan di pit</span>
+                </div>
+              </div>
+            </div>
+
+            <span className="hero-watermark" aria-hidden="true">
+              ⚙
+            </span>
+          </section>
+
           <div className="stat-grid">
-            <article className="stat-card stat-card-blue">
+            <Link
+              to={canSales ? '/sales' : '/inventory'}
+              className="stat-card stat-card-blue is-clickable"
+            >
               <div className="stat-card-top">
                 <span className="stat-icon stat-icon-blue">↗</span>
+                <span className="stat-tag">SALES</span>
                 {salesDelta !== null && (
                   <span
                     className={`trend-pill ${
@@ -222,17 +287,24 @@ export default function DashboardPage() {
                 )}
               </div>
               <p>Penjualan hari ini</p>
-              <strong>{formatCurrency(summary.sales.today_total)}</strong>
-              <small>{summary.sales.today_count} transaksi</small>
+              <strong className="mono-number">
+                {formatCurrency(animatedSales)}
+              </strong>
+              <small>{summary.sales.today_count} transaksi selesai</small>
               <Sparkline
                 values={lastSales.map((point) => point.total)}
                 tone="blue"
               />
-            </article>
+              <span className="stat-open">Buka penjualan →</span>
+            </Link>
 
-            <article className="stat-card stat-card-amber">
+            <Link
+              to={canServices ? '/services' : '/inventory'}
+              className="stat-card stat-card-amber is-clickable"
+            >
               <div className="stat-card-top">
                 <span className="stat-icon stat-icon-amber">⚙</span>
+                <span className="stat-tag">PIT</span>
                 {visitsDelta !== null && (
                   <span
                     className={`trend-pill ${
@@ -245,7 +317,9 @@ export default function DashboardPage() {
                 )}
               </div>
               <p>Servis aktif</p>
-              <strong>{formatNumber(activeServiceCount)}</strong>
+              <strong className="mono-number">
+                {formatNumber(animatedActive)}
+              </strong>
               <small>
                 {summary.services.pending} menunggu ·{' '}
                 {summary.services.in_progress} dikerjakan
@@ -254,250 +328,320 @@ export default function DashboardPage() {
                 values={lastServices.map((point) => point.total)}
                 tone="amber"
               />
-            </article>
+              <span className="stat-open">Buka antrian →</span>
+            </Link>
 
-            <article className="stat-card stat-card-red">
+            <Link
+              to="/inventory"
+              className="stat-card stat-card-red is-clickable"
+            >
               <div className="stat-card-top">
                 <span className="stat-icon stat-icon-red">▦</span>
+                <span className="stat-tag">STOK</span>
                 <span className="trend-pill trend-pill-neutral">
                   {summary.products.total} produk
                 </span>
               </div>
               <p>Stok menipis</p>
-              <strong>{formatNumber(summary.products.low_stock)}</strong>
+              <strong className="mono-number">
+                {formatNumber(animatedLowStock)}
+              </strong>
               <small>{summary.products.out_of_stock} produk habis</small>
               <div className="stat-meter" aria-hidden="true">
                 <span style={{ width: `${lowStockShare}%` }} />
               </div>
-            </article>
+              <span className="stat-open">Cek inventaris →</span>
+            </Link>
 
-            <article className="stat-card stat-card-green">
+            <Link
+              to={canSales ? '/purchases' : '/inventory'}
+              className="stat-card stat-card-green is-clickable"
+            >
               <div className="stat-card-top">
                 <span className="stat-icon stat-icon-green">▤</span>
+                <span className="stat-tag">SUPPLY</span>
                 <span className="trend-pill trend-pill-neutral">
-                  {summary.purchases.month_count} pembelian
+                  {summary.purchases.month_count} PO
                 </span>
               </div>
               <p>Pembelian bulan ini</p>
-              <strong>{formatCurrency(summary.purchases.month_total)}</strong>
-              <small>
-                {summary.purchases.today_count} pembelian hari ini
-              </small>
-            </article>
+              <strong className="mono-number">
+                {formatCurrency(animatedPurchases)}
+              </strong>
+              <small>{summary.purchases.today_count} pembelian hari ini</small>
+              <span className="stat-open">Buka pembelian →</span>
+            </Link>
           </div>
 
-          {visibleFeatures.length > 0 && (
-            <section className="feature-section">
-              <div className="section-head">
-                <div>
-                  <h2>Akses cepat</h2>
-                  <p>Semua fitur utama bengkel dalam satu klik.</p>
+          <div className="dash-grid">
+            <div className="dash-span-7">
+              <SalesTrendChart
+                points={salesTrend}
+                detailTo={canSales ? '/sales' : undefined}
+              />
+            </div>
+
+            <div className="dash-span-5">
+              <article className="panel quick-panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>Pit Crew Shortcut</h2>
+                    <p>Langsung menuju fitur tanpa muat ulang.</p>
+                  </div>
+                  <span className="live-chip">
+                    <i className="pulse-dot" aria-hidden="true" />
+                    LIVE
+                  </span>
                 </div>
-              </div>
 
-              <div className="feature-grid">
-                {visibleFeatures.map((feature) => (
-                  <Link
-                    key={feature.path}
-                    to={feature.path}
-                    className={`feature-card feature-card-${feature.tone}`}
-                  >
-                    <span className="feature-icon">{feature.icon}</span>
-                    <div>
-                      <strong>{feature.title}</strong>
-                      <p>{feature.description}</p>
-                    </div>
-                    <span className="feature-arrow" aria-hidden="true">
-                      →
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <div className="chart-grid">
-            <SalesTrendChart points={salesTrend} />
-            <ServiceTrafficChart points={serviceTrend} />
-          </div>
-
-          <div className="dashboard-grid">
-            <article className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Status Servis</h2>
-                  <p>Distribusi pekerjaan servis saat ini.</p>
+                <div className="quick-grid">
+                  {quickFeatures.map((feature) => (
+                    <Link
+                      key={feature.label}
+                      to={feature.to}
+                      className={`quick-tile quick-tile-${feature.tone}`}
+                    >
+                      <span className="quick-icon">{feature.icon}</span>
+                      <strong>{feature.label}</strong>
+                      <small>{feature.meta}</small>
+                      <span className="quick-arrow" aria-hidden="true">
+                        →
+                      </span>
+                    </Link>
+                  ))}
                 </div>
-                <Link className="text-link" to="/services">
-                  Kelola
-                </Link>
-              </div>
 
-              <div className="service-overview">
+                <div className="quick-note">
+                  <span className="status-dot status-dot-live" />
+                  Semua modul tersambung ke server yang sama.
+                </div>
+              </article>
+            </div>
+
+            <div className="dash-span-5">
+              <ServiceTrafficChart
+                points={serviceTrend}
+                detailTo={canServices ? '/services' : undefined}
+              />
+            </div>
+
+            <div className="dash-span-3">
+              <article className="panel status-panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>Status Pit</h2>
+                    <p>Distribusi servis.</p>
+                  </div>
+                </div>
+
                 <div
-                  className="donut-chart"
+                  className="donut-chart donut-compact"
                   style={{ background: `conic-gradient(${donutStops})` }}
                   role="img"
                   aria-label={`Total ${serviceTotal} servis`}
                 >
                   <div className="donut-center">
                     <strong>{serviceTotal}</strong>
-                    <span>total servis</span>
+                    <span>servis</span>
                   </div>
                 </div>
 
                 <ul className="donut-legend">
-                  {serviceSegments.map((segment) => (
-                    <li key={segment.key}>
-                      <span
-                        className="status-dot"
-                        style={{ background: segment.color }}
-                      />
-                      <span className="donut-legend-label">
-                        {segment.label}
-                      </span>
-                      <strong>{segment.value}</strong>
-                      <small>
-                        {serviceTotal > 0
-                          ? `${((segment.value / serviceTotal) * 100).toFixed(
-                              0,
-                            )}%`
-                          : '0%'}
-                      </small>
-                    </li>
-                  ))}
+                  {serviceSegments.map((segment) => {
+                    const row = (
+                      <>
+                        <span
+                          className="status-dot"
+                          style={{ background: segment.color }}
+                        />
+                        <span className="donut-legend-label">
+                          {segment.label}
+                        </span>
+                        <strong>{segment.value}</strong>
+                      </>
+                    )
+
+                    return (
+                      <li key={segment.key}>
+                        {canServices ? (
+                          <Link
+                            className="donut-legend-row"
+                            to={`/services?status=${segment.key}`}
+                          >
+                            {row}
+                            <span className="donut-legend-arrow">→</span>
+                          </Link>
+                        ) : (
+                          <span className="donut-legend-row">{row}</span>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ul>
-              </div>
 
-              <p className="panel-note">
-                {summary.services.unpaid} servis belum lunas.
-              </p>
-            </article>
+                <p className="panel-note">
+                  {summary.services.unpaid} servis belum lunas.
+                </p>
+              </article>
+            </div>
 
-            <article className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Ringkasan Penjualan</h2>
-                  <p>Akumulasi transaksi yang sudah selesai.</p>
+            <div className="dash-span-4">
+              <article className="panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>Ringkasan Penjualan</h2>
+                    <p>Akumulasi transaksi selesai.</p>
+                  </div>
+                  {canSales && (
+                    <Link className="text-link" to="/sales">
+                      Lihat semua
+                    </Link>
+                  )}
                 </div>
-                <Link className="text-link" to="/sales">
-                  Lihat semua
-                </Link>
-              </div>
 
-              <dl className="summary-list">
-                <div>
-                  <dt>Hari ini</dt>
-                  <dd>
-                    {formatCurrency(summary.sales.today_total)}
-                    <span>{summary.sales.today_count} transaksi</span>
-                  </dd>
-                </div>
-                <div>
-                  <dt>Bulan ini</dt>
-                  <dd>
-                    {formatCurrency(summary.sales.month_total)}
-                    <span>{summary.sales.month_count} transaksi</span>
-                  </dd>
-                </div>
-                <div>
-                  <dt>Total keseluruhan</dt>
-                  <dd>
-                    {formatCurrency(summary.sales.total_revenue)}
-                    <span>{summary.sales.total_count} transaksi</span>
-                  </dd>
-                </div>
-              </dl>
-            </article>
-          </div>
+                <dl className="summary-list summary-compact">
+                  <div>
+                    <dt>Hari ini</dt>
+                    <dd>
+                      {formatCurrency(summary.sales.today_total)}
+                      <span>{summary.sales.today_count} transaksi</span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Bulan ini</dt>
+                    <dd>
+                      {formatCurrency(summary.sales.month_total)}
+                      <span>{summary.sales.month_count} transaksi</span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Total</dt>
+                    <dd>
+                      {formatCurrency(summary.sales.total_revenue)}
+                      <span>{summary.sales.total_count} transaksi</span>
+                    </dd>
+                  </div>
+                </dl>
+              </article>
+            </div>
 
-          <div className="dashboard-grid">
-            <article className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Stok Menipis</h2>
-                  <p>Produk dengan stok ≤ 5.</p>
+            <div className="dash-span-6">
+              <article className="panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>Stok Menipis</h2>
+                    <p>Klik produk untuk cek di inventaris.</p>
+                  </div>
+                  <Link className="text-link" to="/inventory">
+                    Inventaris
+                  </Link>
                 </div>
-                <Link className="text-link" to="/inventory">
-                  Inventaris
-                </Link>
-              </div>
 
-              {summary.low_stock_products.length === 0 ? (
-                <p className="empty-text">Semua stok produk aman.</p>
-              ) : (
-                <div className="table-wrap">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Produk</th>
-                        <th>SKU</th>
-                        <th className="align-right">Stok</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {summary.low_stock_products.map((product) => (
-                        <tr key={product.id}>
-                          <td>{product.name}</td>
-                          <td className="mono">{product.sku}</td>
-                          <td className="align-right">
-                            <StatusBadge
-                              status={product.stock === 0 ? 'out' : 'pending'}
-                              label={`${product.stock}`}
-                            />
-                          </td>
+                {summary.low_stock_products.length === 0 ? (
+                  <p className="empty-text">Semua stok produk aman.</p>
+                ) : (
+                  <div className="table-wrap">
+                    <table className="data-table compact-table">
+                      <thead>
+                        <tr>
+                          <th>Produk</th>
+                          <th>SKU</th>
+                          <th className="align-right">Stok</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </article>
+                      </thead>
+                      <tbody>
+                        {summary.low_stock_products.map((product) => (
+                          <tr
+                            key={product.id}
+                            {...rowNavigation(
+                              `/inventory?q=${encodeURIComponent(product.sku)}`,
+                            )}
+                          >
+                            <td>
+                              <Link
+                                className="row-link"
+                                to={`/inventory?q=${encodeURIComponent(
+                                  product.sku,
+                                )}`}
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                {product.name}
+                              </Link>
+                            </td>
+                            <td className="mono">{product.sku}</td>
+                            <td className="align-right">
+                              <StatusBadge
+                                status={product.stock === 0 ? 'out' : 'pending'}
+                                label={`${product.stock}`}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </article>
+            </div>
 
-            <article className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Penjualan Terbaru</h2>
-                  <p>5 transaksi terakhir.</p>
+            <div className="dash-span-6">
+              <article className="panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>Penjualan Terbaru</h2>
+                    <p>Klik nota untuk membuka detail.</p>
+                  </div>
+                  {canSales && (
+                    <Link className="text-link" to="/sales">
+                      Semua
+                    </Link>
+                  )}
                 </div>
-              </div>
 
-              {summary.recent_sales.length === 0 ? (
-                <p className="empty-text">Belum ada penjualan.</p>
-              ) : (
-                <ul className="activity-list">
-                  {summary.recent_sales.map((sale) => (
-                    <li key={sale.id}>
-                      <div>
-                        <strong>{sale.invoice_number}</strong>
-                        <span>{formatDateTime(sale.created_at)}</span>
-                      </div>
-                      <span className="activity-amount">
-                        {formatCurrency(sale.total)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </article>
+                {summary.recent_sales.length === 0 ? (
+                  <p className="empty-text">Belum ada penjualan.</p>
+                ) : (
+                  <ul className="activity-list activity-compact">
+                    {summary.recent_sales.map((sale) => (
+                      <li
+                        key={sale.id}
+                        {...(canSales
+                          ? rowNavigation(`/sales?sale=${sale.id}`)
+                          : {})}
+                      >
+                        <div>
+                          <strong>{sale.invoice_number}</strong>
+                          <span>{formatDateTime(sale.created_at)}</span>
+                        </div>
+                        <span className="activity-amount">
+                          {formatCurrency(sale.total)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            </div>
           </div>
 
-          <article className="panel">
+          <article className="panel active-panel">
             <div className="panel-header">
               <div>
                 <h2>Servis Aktif</h2>
-                <p>Pekerjaan yang masih menunggu atau sedang dikerjakan.</p>
+                <p>Kendaraan yang masih menunggu atau dikerjakan.</p>
               </div>
-              <Link className="text-link" to="/services">
-                Lihat semua
-              </Link>
+              {canServices && (
+                <Link className="text-link" to="/services">
+                  Lihat semua
+                </Link>
+              )}
             </div>
 
             {summary.active_services.length === 0 ? (
               <p className="empty-text">Tidak ada servis aktif.</p>
             ) : (
               <div className="table-wrap">
-                <table className="data-table">
+                <table className="data-table compact-table">
                   <thead>
                     <tr>
                       <th>No. Servis</th>
@@ -509,8 +653,27 @@ export default function DashboardPage() {
                   </thead>
                   <tbody>
                     {summary.active_services.map((service) => (
-                      <tr key={service.id}>
-                        <td className="mono">{service.service_number}</td>
+                      <tr
+                        key={service.id}
+                        {...rowNavigation(
+                          canServices
+                            ? `/services?service=${service.id}`
+                            : null,
+                        )}
+                      >
+                        <td className="mono">
+                          {canServices ? (
+                            <Link
+                              className="row-link"
+                              to={`/services?service=${service.id}`}
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              {service.service_number}
+                            </Link>
+                          ) : (
+                            service.service_number
+                          )}
+                        </td>
                         <td>{service.customer_name}</td>
                         <td className="mono">{service.vehicle_plate}</td>
                         <td>

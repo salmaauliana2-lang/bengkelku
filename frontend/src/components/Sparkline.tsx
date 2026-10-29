@@ -6,9 +6,9 @@ const WIDTH = 120
 const HEIGHT = 36
 
 const toneColors: Record<string, string> = {
-  blue: '#4c7bf4',
-  green: '#12b76a',
-  amber: '#f79009',
+  blue: '#ff6a2b',
+  green: '#12b886',
+  amber: '#d9820a',
   red: '#f04438',
 }
 

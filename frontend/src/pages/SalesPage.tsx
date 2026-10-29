@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
 import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
@@ -36,6 +37,8 @@ export default function SalesPage() {
 
   const [detail, setDetail] = useState<Sale | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const saleParam = searchParams.get('sale')
 
   const [createOpen, setCreateOpen] = useState(false)
   const [products, setProducts] = useState<Product[]>([])
@@ -114,6 +117,43 @@ export default function SalesPage() {
       )
     } finally {
       setDetailLoading(false)
+    }
+  }
+
+  // Tautan langsung /sales?sale=12 dari dashboard membuka detail otomatis.
+  useEffect(() => {
+    const id = Number(saleParam)
+
+    if (!Number.isInteger(id) || id <= 0) return
+
+    let active = true
+
+    getSale(id)
+      .then((result) => {
+        if (active) setDetail(result.data)
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Gagal memuat detail penjualan',
+          )
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [saleParam])
+
+  function closeDetail() {
+    setDetail(null)
+
+    if (saleParam) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('sale')
+      setSearchParams(next, { replace: true })
     }
   }
 
@@ -320,7 +360,7 @@ export default function SalesPage() {
         <Modal
           title="Detail Penjualan"
           subtitle={detail.invoice_number}
-          onClose={() => setDetail(null)}
+          onClose={closeDetail}
           size="wide"
         >
           {detailLoading ? (

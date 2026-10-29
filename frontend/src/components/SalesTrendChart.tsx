@@ -1,4 +1,5 @@
 import { useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { Link } from 'react-router-dom'
 
 import type { SalesTrendPoint } from '../types'
 import {
@@ -23,9 +24,13 @@ type Range = (typeof RANGES)[number]
 
 interface SalesTrendChartProps {
   points: SalesTrendPoint[]
+  detailTo?: string
 }
 
-export default function SalesTrendChart({ points }: SalesTrendChartProps) {
+export default function SalesTrendChart({
+  points,
+  detailTo,
+}: SalesTrendChartProps) {
   const [range, setRange] = useState<Range>(7)
   const [hovered, setHovered] = useState<number | null>(null)
 
@@ -161,8 +166,8 @@ export default function SalesTrendChart({ points }: SalesTrendChartProps) {
                 x2="0"
                 y2="1"
               >
-                <stop offset="0%" stopColor="#4c7bf4" stopOpacity="0.35" />
-                <stop offset="100%" stopColor="#4c7bf4" stopOpacity="0" />
+                <stop offset="0%" stopColor="#ff6a2b" stopOpacity="0.32" />
+                <stop offset="100%" stopColor="#ff6a2b" stopOpacity="0" />
               </linearGradient>
               <linearGradient
                 id="sales-line-gradient"
@@ -171,9 +176,9 @@ export default function SalesTrendChart({ points }: SalesTrendChartProps) {
                 x2="1"
                 y2="0"
               >
-                <stop offset="0%" stopColor="#31558a" />
-                <stop offset="50%" stopColor="#4c7bf4" />
-                <stop offset="100%" stopColor="#22c3a6" />
+                <stop offset="0%" stopColor="#e8590c" />
+                <stop offset="55%" stopColor="#ff6a2b" />
+                <stop offset="100%" stopColor="#ffb020" />
               </linearGradient>
             </defs>
 
@@ -292,12 +297,22 @@ export default function SalesTrendChart({ points }: SalesTrendChartProps) {
         </div>
       )}
 
-      {best && best.total > 0 && (
-        <p className="chart-footnote">
-          Penjualan tertinggi: <strong>{formatDayFull(best.date)}</strong> ·{' '}
-          {formatCurrency(best.total)}
-        </p>
-      )}
+      <div className="chart-footer">
+        {best && best.total > 0 ? (
+          <p className="chart-footnote">
+            Penjualan tertinggi: <strong>{formatDayFull(best.date)}</strong> ·{' '}
+            {formatCurrency(best.total)}
+          </p>
+        ) : (
+          <span />
+        )}
+
+        {detailTo && (
+          <Link className="chart-detail-link" to={detailTo}>
+            Buka halaman penjualan →
+          </Link>
+        )}
+      </div>
     </article>
   )
 }

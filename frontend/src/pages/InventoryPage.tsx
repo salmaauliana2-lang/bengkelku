@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
 import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
@@ -63,8 +64,10 @@ export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [productPage, setProductPage] = useState(1)
   const [productTotal, setProductTotal] = useState(0)
-  const [search, setSearch] = useState('')
-  const [appliedSearch, setAppliedSearch] = useState('')
+  const [searchParams] = useSearchParams()
+  const queryParam = searchParams.get('q') ?? ''
+  const [search, setSearch] = useState(queryParam)
+  const [appliedSearch, setAppliedSearch] = useState(queryParam)
   const [productsLoading, setProductsLoading] = useState(true)
 
   const [movements, setMovements] = useState<StockMovement[]>([])
@@ -88,6 +91,20 @@ export default function InventoryPage() {
   const [stockForm, setStockForm] = useState<StockFormState>(emptyStockForm)
   const [savingStock, setSavingStock] = useState(false)
   const [stockError, setStockError] = useState('')
+
+  // Dukungan tautan langsung seperti /inventory?q=OLI-001 dari dashboard.
+  // Parameter hanya dipakai saat berubah dari luar agar pencarian manual
+  // di halaman ini tidak ditimpa.
+  const lastQueryParam = useRef(queryParam)
+
+  useEffect(() => {
+    if (queryParam === lastQueryParam.current) return
+
+    lastQueryParam.current = queryParam
+    setSearch(queryParam)
+    setAppliedSearch(queryParam)
+    setProductPage(1)
+  }, [queryParam])
 
   useEffect(() => {
     let active = true

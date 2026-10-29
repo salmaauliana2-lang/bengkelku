@@ -1,4 +1,5 @@
 import { useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { Link } from 'react-router-dom'
 
 import type { ServiceTrendPoint } from '../types'
 import {
@@ -20,10 +21,12 @@ type Range = (typeof RANGES)[number]
 
 interface ServiceTrafficChartProps {
   points: ServiceTrendPoint[]
+  detailTo?: string
 }
 
 export default function ServiceTrafficChart({
   points,
+  detailTo,
 }: ServiceTrafficChartProps) {
   const [range, setRange] = useState<Range>(7)
   const [hovered, setHovered] = useState<number | null>(null)
@@ -149,8 +152,8 @@ export default function ServiceTrafficChart({
                 x2="0"
                 y2="1"
               >
-                <stop offset="0%" stopColor="#8fb0f9" />
-                <stop offset="100%" stopColor="#dbe6ff" />
+                <stop offset="0%" stopColor="#ffc48f" />
+                <stop offset="100%" stopColor="#fff1e6" />
               </linearGradient>
               <linearGradient
                 id="service-bar-done"
@@ -159,8 +162,8 @@ export default function ServiceTrafficChart({
                 x2="0"
                 y2="1"
               >
-                <stop offset="0%" stopColor="#22c3a6" />
-                <stop offset="100%" stopColor="#0e9f86" />
+                <stop offset="0%" stopColor="#2fe0b0" />
+                <stop offset="100%" stopColor="#0c9f7c" />
               </linearGradient>
             </defs>
 
@@ -280,9 +283,17 @@ export default function ServiceTrafficChart({
         </div>
       )}
 
-      <p className="chart-footnote">
-        Customer datang, dikerjakan, lalu selesai — semua terpantau di sini.
-      </p>
+      <div className="chart-footer">
+        <p className="chart-footnote">
+          Customer datang, dikerjakan, lalu selesai — semua terpantau di sini.
+        </p>
+
+        {detailTo && (
+          <Link className="chart-detail-link" to={detailTo}>
+            Buka halaman servis →
+          </Link>
+        )}
+      </div>
     </article>
   )
 }

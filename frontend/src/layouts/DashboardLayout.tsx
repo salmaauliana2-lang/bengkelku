@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { useAuth } from '../context/AuthContext'
 import type { Role } from '../types'
@@ -54,10 +54,19 @@ const menuItems: MenuItem[] = [
 function DashboardLayout() {
   const { user, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const location = useLocation()
 
   const visibleMenu = menuItems.filter(
     (item) => user && item.roles.includes(user.role),
   )
+
+  const activeMenu =
+    visibleMenu.find((item) => location.pathname.startsWith(item.path)) ??
+    visibleMenu[0]
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [location.pathname])
 
   return (
     <div className="dashboard-layout">
@@ -72,14 +81,18 @@ function DashboardLayout() {
 
       <aside className={sidebarOpen ? 'sidebar sidebar-open' : 'sidebar'}>
         <div className="sidebar-brand">
-          <div className="brand-icon">⚙</div>
+          <div className="brand-icon">
+            <span aria-hidden="true">⚙</span>
+          </div>
           <div>
-            <strong>WorkshopPro</strong>
-            <span>Management System</span>
+            <strong>WORKSHOP PRO</strong>
+            <span>Garage Control</span>
           </div>
         </div>
 
-        <p className="sidebar-heading">MENU UTAMA</p>
+        <div className="garage-stripe" aria-hidden="true" />
+
+        <p className="sidebar-heading">PIT LANE</p>
 
         <nav className="sidebar-nav">
           {visibleMenu.map((item) => (
@@ -98,9 +111,9 @@ function DashboardLayout() {
         </nav>
 
         <div className="sidebar-footer">
-          <span className="status-dot" />
-          <span>Terhubung ke server</span>
-          <small>WorkshopPro v1.0</small>
+          <span className="status-dot status-dot-live" />
+          <span>Engine online</span>
+          <small>WorkshopPro v1.0 · garage build</small>
         </div>
       </aside>
 
@@ -116,7 +129,10 @@ function DashboardLayout() {
               ☰
             </button>
             <div>
-              <strong>Workshop Management</strong>
+              <span className="topbar-kicker">
+                GARAGE<span>/</span>
+                {activeMenu?.label ?? 'Dashboard'}
+              </span>
               <p>Inventaris dan operasional bengkel motor</p>
             </div>
           </div>
@@ -139,8 +155,12 @@ function DashboardLayout() {
           </div>
         </header>
 
+        <div className="garage-stripe garage-stripe-top" aria-hidden="true" />
+
         <main className="page-content">
-          <Outlet />
+          <div className="route-view" key={location.pathname}>
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

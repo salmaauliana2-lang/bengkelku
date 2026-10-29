@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
 import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
@@ -74,7 +75,14 @@ export default function ServicesPage() {
   const [total, setTotal] = useState(0)
   const [search, setSearch] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<ServiceStatus | ''>('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const serviceParam = searchParams.get('service')
+  const statusParam = searchParams.get('status')
+  const [statusFilter, setStatusFilter] = useState<ServiceStatus | ''>(() =>
+    statusOptions.some((option) => option.value === statusParam)
+      ? (statusParam as ServiceStatus)
+      : '',
+  )
   const [loading, setLoading] = useState(true)
 
   const [error, setError] = useState('')
@@ -202,6 +210,62 @@ export default function ServicesPage() {
     } finally {
       setDetailLoading(false)
     }
+  }
+
+  // Tautan /services?service=12 dari dashboard membuka detail otomatis.
+  useEffect(() => {
+    const id = Number(serviceParam)
+
+    if (!Number.isInteger(id) || id <= 0) return
+
+    let active = true
+
+    Promise.all([
+      getService(id),
+      listProducts({ page: 1, limit: 100 }),
+    ])
+      .then(([serviceResult, productResult]) => {
+        if (!active) return
+
+        applyDetail(serviceResult.data)
+        setProducts(productResult.data)
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setError(
+            err instanceof Error ? err.message : 'Gagal memuat detail servis',
+          )
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [serviceParam])
+
+  function closeDetail() {
+    setDetail(null)
+
+    if (serviceParam) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('service')
+      setSearchParams(next, { replace: true })
+    }
+  }
+
+  function changeStatusFilter(value: ServiceStatus | '') {
+    setPage(1)
+    setStatusFilter(value)
+
+    const next = new URLSearchParams(searchParams)
+
+    if (value) {
+      next.set('status', value)
+    } else {
+      next.delete('status')
+    }
+
+    setSearchParams(next, { replace: true })
   }
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
@@ -383,10 +447,9 @@ export default function ServicesPage() {
           <select
             className="input toolbar-select"
             value={statusFilter}
-            onChange={(event) => {
-              setPage(1)
-              setStatusFilter(event.target.value as ServiceStatus | '')
-            }}
+            onChange={(event) =>
+              changeStatusFilter(event.target.value as ServiceStatus | '')
+            }
           >
             {statusOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -621,7 +684,7 @@ export default function ServicesPage() {
         <Modal
           title="Detail Servis"
           subtitle={detail.service_number}
-          onClose={() => setDetail(null)}
+          onClose={closeDetail}
           size="wide"
         >
           {detailLoading ? (

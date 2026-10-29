@@ -1,4 +1,4 @@
-# Workshop Management System (Tugas Akhir)
+﻿# Workshop Management System (Tugas Akhir)
 
 Backend Go (Gin + PostgreSQL) dan frontend statis untuk manajemen bengkel:
 inventaris, pembelian, penjualan, dan servis.
@@ -37,16 +37,26 @@ terakhir (hari ini dan 6 hari sebelumnya):
 Data demo langsung tampil di dashboard, inventaris, riwayat stok,
 penjualan, servis, pembelian, dan halaman pengguna.
 
-### Dashboard interaktif
+### Dashboard bergaya garage
 
-- **Grafik penjualan** — omzet harian dengan area gradien, tooltip saat
-  kursor diarahkan, dan pilihan rentang 7 atau 30 hari.
-- **Grafik traffic servis** — jumlah kendaraan masuk dan yang selesai per
-  hari, lengkap dengan rasio penyelesaian.
-- **Akses cepat fitur** — kartu Inventaris, Penjualan, Servis, dan
-  Pembelian yang menyesuaikan role pengguna.
-- **Kartu statistik** dengan sparkline, tren naik/turun, serta cincin
-  distribusi status servis.
+Halaman dashboard memakai tema bengkel: sidebar karbon, aksen safety
+orange, jam workshop yang berjalan, serta animasi masuk yang halus
+(otomatis dimatikan bila pengguna mengaktifkan *reduced motion*).
+
+- **Semua fitur bisa diklik** — kartu statistik, tile akses cepat, baris
+  tabel, legenda donut, dan tombol grafik langsung berpindah halaman
+  tanpa muat ulang (React Router).
+- **Deep link** — misalnya `/inventory?q=ENG-008`, `/sales?sale=35`,
+  `/services?service=8`, dan `/services?status=completed`, sehingga
+  detail atau filter langsung terbuka saat halaman dimuat.
+- **Grafik penjualan** — omzet harian dengan area gradien, tooltip, dan
+  pilihan rentang 7 atau 30 hari.
+- **Grafik traffic servis** — jumlah kendaraan masuk dan selesai per hari
+  beserta rasio penyelesaian.
+- **Kartu statistik** — sparkline, tren naik/turun, angka animasi, dan
+  cincin distribusi status servis yang bisa difilter.
+- **Layout padat** — grid 12 kolom dengan panel grafik, ringkasan, stok
+  menipis, penjualan terbaru, dan servis aktif dalam satu layar.
 
 ### Akun demo
 
@@ -86,9 +96,9 @@ password secara otomatis.
 
 ## Endpoint tambahan
 
-- `GET /api/auth/me` — data pengguna yang sedang login.
-- `GET /api/users` — daftar pengguna (khusus owner).
-- `GET /api/purchases` dan `GET /api/purchases/:id` — riwayat pembelian.
+- `GET /api/auth/me` â€” data pengguna yang sedang login.
+- `GET /api/users` â€” daftar pengguna (khusus owner).
+- `GET /api/purchases` dan `GET /api/purchases/:id` â€” riwayat pembelian.
 - Semua endpoint daftar mendukung pagination `?page=1&limit=20`
   (limit maksimum 100) dan mengembalikan `meta` berisi `page`, `limit`,
   dan `total`.
