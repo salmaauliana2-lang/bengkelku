@@ -192,6 +192,48 @@ export default function LoginPage() {
             Belum punya akun? <Link to="/register">Daftar di sini</Link>
           </p>
 
+          <div className="demo-accounts">
+            <div className="demo-accounts-head">
+              <strong>Akun demo</strong>
+              <span>Klik untuk mengisi otomatis</span>
+            </div>
+            <div className="demo-accounts-list">
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('owner@bengkelku.id')
+                  setPassword('owner123')
+                  setError('')
+                }}
+              >
+                <span>Owner</span>
+                owner@bengkelku.id
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('admin@bengkelku.id')
+                  setPassword('admin123')
+                  setError('')
+                }}
+              >
+                <span>Admin</span>
+                admin@bengkelku.id
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('budi@bengkelku.id')
+                  setPassword('mekanik123')
+                  setError('')
+                }}
+              >
+                <span>Mekanik</span>
+                budi@bengkelku.id
+              </button>
+            </div>
+          </div>
+
           <div className="login-footer">
             <span className="footer-dot" />
             Sistem manajemen bengkel terintegrasi

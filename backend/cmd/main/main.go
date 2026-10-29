@@ -19,12 +19,21 @@ import (
 	"Tugas_Akhir/backend/internal/products"
 	"Tugas_Akhir/backend/internal/purchases"
 	"Tugas_Akhir/backend/internal/sales"
+	"Tugas_Akhir/backend/internal/seed"
 	"Tugas_Akhir/backend/internal/services"
 	"Tugas_Akhir/backend/internal/stock"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
+
+// seedEnabled membaca SEED_DEMO_DATA. Seed aktif secara default agar
+// aplikasi langsung berisi contoh data saat pertama kali dijalankan.
+func seedEnabled() bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv("SEED_DEMO_DATA")))
+
+	return value != "false" && value != "0" && value != "no"
+}
 
 // allowedOrigins membaca daftar origin frontend yang diizinkan dari
 // variabel lingkungan CORS_ORIGINS (dipisah koma). Jika kosong,
@@ -91,6 +100,30 @@ func main() {
 
 	log.Println("Migration berhasil diperiksa!")
 
+	// 4b. Mengisi data demo sekali saja ketika database masih kosong.
+	// Data demo membuat aplikasi langsung siap dipresentasikan: 56 spare
+	// part, akun pengguna, serta transaksi 7 hari terakhir. Matikan dengan
+	// SEED_DEMO_DATA=false bila ingin memulai dari database kosong.
+	if seedEnabled() {
+		seedCtx, cancelSeed := context.WithTimeout(
+			context.Background(),
+			90*time.Second,
+		)
+		seeded, seedErr := seed.RunIfEmpty(seedCtx, db)
+		cancelSeed()
+
+		if seedErr != nil {
+			log.Fatal("Seed data demo gagal: ", seedErr)
+		}
+
+		if seeded {
+			log.Println("Data demo 7 hari terakhir berhasil dibuat.")
+			log.Println("Login demo: owner@bengkelku.id / owner123")
+		} else {
+			log.Println("Data produk sudah ada, seed demo dilewati.")
+		}
+	}
+
 	// 5. Membuat router Gin.
 	router := gin.Default()
 
@@ -118,6 +151,13 @@ func main() {
 	}))
 
 	router.GET("/", func(c *gin.Context) {
+		// Mode deployment satu container: akar situs menampilkan aplikasi
+		// frontend. Tanpa STATIC_DIR, akar tetap menjadi info API.
+		if staticDir := strings.TrimSpace(os.Getenv("STATIC_DIR")); staticDir != "" {
+			c.File(filepath.Join(staticDir, "index.html"))
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"name":   "Tugas_Akhir API",
 			"status": "running",
