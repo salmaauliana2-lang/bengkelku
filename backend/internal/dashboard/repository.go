@@ -7,6 +7,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// TrendDays adalah panjang data harian yang dikirim ke grafik dashboard.
+const TrendDays = 30
+
 // LowStockThreshold adalah batas stok yang dianggap menipis.
 const LowStockThreshold = 5
 
@@ -115,6 +118,18 @@ func (r *Repository) Summary(ctx context.Context) (Summary, error) {
 	}
 	summary.LowStock = lowStock
 
+	salesTrend, err := r.salesTrend(ctx)
+	if err != nil {
+		return Summary{}, err
+	}
+	summary.SalesTrend = salesTrend
+
+	serviceTrend, err := r.serviceTrend(ctx)
+	if err != nil {
+		return Summary{}, err
+	}
+	summary.ServiceTrend = serviceTrend
+
 	recentSales, err := r.recentSales(ctx)
 	if err != nil {
 		return Summary{}, err
@@ -128,6 +143,108 @@ func (r *Repository) Summary(ctx context.Context) (Summary, error) {
 	summary.ActiveServices = activeServices
 
 	return summary, nil
+}
+
+// salesTrend mengembalikan total dan jumlah transaksi selesai per hari
+// selama TrendDays terakhir, termasuk hari-hari tanpa transaksi (nilai 0).
+func (r *Repository) salesTrend(
+	ctx context.Context,
+) ([]SalesTrendPoint, error) {
+	rows, err := r.db.Query(ctx, `
+		WITH days AS (
+			SELECT generate_series(
+				CURRENT_DATE - make_interval(days => $1 - 1),
+				CURRENT_DATE,
+				INTERVAL '1 day'
+			)::date AS day
+		)
+		SELECT
+			to_char(d.day, 'YYYY-MM-DD'),
+			COALESCE(SUM(s.total), 0),
+			COUNT(s.id)
+		FROM days d
+		LEFT JOIN sales s
+		       ON s.created_at::date = d.day
+		      AND s.status = 'completed'
+		GROUP BY d.day
+		ORDER BY d.day
+	`, TrendDays)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengambil tren penjualan: %w", err)
+	}
+	defer rows.Close()
+
+	trend := make([]SalesTrendPoint, 0, TrendDays)
+
+	for rows.Next() {
+		var point SalesTrendPoint
+
+		if err := rows.Scan(
+			&point.Date,
+			&point.Total,
+			&point.Count,
+		); err != nil {
+			return nil, fmt.Errorf("gagal membaca tren penjualan: %w", err)
+		}
+
+		trend = append(trend, point)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("gagal membaca hasil tren penjualan: %w", err)
+	}
+
+	return trend, nil
+}
+
+// serviceTrend mengembalikan jumlah kendaraan yang masuk servis per hari
+// beserta jumlah yang sudah selesai, selama TrendDays terakhir.
+func (r *Repository) serviceTrend(
+	ctx context.Context,
+) ([]ServiceTrendPoint, error) {
+	rows, err := r.db.Query(ctx, `
+		WITH days AS (
+			SELECT generate_series(
+				CURRENT_DATE - make_interval(days => $1 - 1),
+				CURRENT_DATE,
+				INTERVAL '1 day'
+			)::date AS day
+		)
+		SELECT
+			to_char(d.day, 'YYYY-MM-DD'),
+			COUNT(s.id),
+			COUNT(s.id) FILTER (WHERE s.status = 'completed')
+		FROM days d
+		LEFT JOIN services s ON s.created_at::date = d.day
+		GROUP BY d.day
+		ORDER BY d.day
+	`, TrendDays)
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengambil tren servis: %w", err)
+	}
+	defer rows.Close()
+
+	trend := make([]ServiceTrendPoint, 0, TrendDays)
+
+	for rows.Next() {
+		var point ServiceTrendPoint
+
+		if err := rows.Scan(
+			&point.Date,
+			&point.Total,
+			&point.Completed,
+		); err != nil {
+			return nil, fmt.Errorf("gagal membaca tren servis: %w", err)
+		}
+
+		trend = append(trend, point)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("gagal membaca hasil tren servis: %w", err)
+	}
+
+	return trend, nil
 }
 
 func (r *Repository) lowStockProducts(

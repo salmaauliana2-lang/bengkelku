@@ -37,6 +37,17 @@ terakhir (hari ini dan 6 hari sebelumnya):
 Data demo langsung tampil di dashboard, inventaris, riwayat stok,
 penjualan, servis, pembelian, dan halaman pengguna.
 
+### Dashboard interaktif
+
+- **Grafik penjualan** — omzet harian dengan area gradien, tooltip saat
+  kursor diarahkan, dan pilihan rentang 7 atau 30 hari.
+- **Grafik traffic servis** — jumlah kendaraan masuk dan yang selesai per
+  hari, lengkap dengan rasio penyelesaian.
+- **Akses cepat fitur** — kartu Inventaris, Penjualan, Servis, dan
+  Pembelian yang menyesuaikan role pengguna.
+- **Kartu statistik** dengan sparkline, tren naik/turun, serta cincin
+  distribusi status servis.
+
 ### Akun demo
 
 | Role    | Email                  | Password    |

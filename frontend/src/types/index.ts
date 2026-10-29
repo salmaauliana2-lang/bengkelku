@@ -144,6 +144,18 @@ export interface Purchase {
   updated_at: string
 }
 
+export interface SalesTrendPoint {
+  date: string
+  total: number
+  count: number
+}
+
+export interface ServiceTrendPoint {
+  date: string
+  total: number
+  completed: number
+}
+
 export interface DashboardSummary {
   products: {
     total: number
@@ -173,6 +185,8 @@ export interface DashboardSummary {
     month_count: number
     total_count: number
   }
+  sales_trend: SalesTrendPoint[]
+  service_trend: ServiceTrendPoint[]
   low_stock_products: Array<{
     id: number
     name: string

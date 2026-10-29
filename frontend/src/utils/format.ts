@@ -8,8 +8,23 @@ const currencyFormatter = new Intl.NumberFormat('id-ID', {
 
 const numberFormatter = new Intl.NumberFormat('id-ID')
 
+const compactNumberFormatter = new Intl.NumberFormat('id-ID', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+})
+
 export function formatCurrency(value: number | null | undefined): string {
   return currencyFormatter.format(value ?? 0)
+}
+
+export function formatCompactCurrency(
+  value: number | null | undefined,
+): string {
+  const amount = value ?? 0
+
+  if (Math.abs(amount) < 1000) return formatCurrency(amount)
+
+  return `Rp ${compactNumberFormatter.format(amount)}`
 }
 
 export function formatNumber(value: number | null | undefined): string {
